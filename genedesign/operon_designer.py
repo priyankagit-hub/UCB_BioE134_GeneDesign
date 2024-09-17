@@ -1,9 +1,9 @@
 from transcript_designer import TranscriptDesigner
-from construct_to_seq import construct_to_seq
+from construct_to_seq import operon_to_seq
 from models.composition import Composition
-from models.construct import Construct
+from models.operon import Operon
 
-class CompositionToDNA:
+class OperonDesigner:
     """
     Constructs a DNA sequence for a (co)cistronic operon based on a Composition object that specifies an engineered organism.
     """
@@ -18,7 +18,7 @@ class CompositionToDNA:
         self.td = TranscriptDesigner()
         self.td.initiate()
 
-    def run(self, comp: Composition) -> Construct:
+    def run(self, comp: Composition) -> Operon:
         """
         Constructs a DNA sequence based on the composition input.
         
@@ -39,7 +39,7 @@ class CompositionToDNA:
             ignores.add(mrna.rbs)  # Avoid repeated RBS
             mRNAs.append(mrna)
         
-        return Construct(mRNAs, comp.promoter, comp.terminator)
+        return Operon(mRNAs, comp.promoter, comp.terminator)
 
 if __name__ == "__main__":
     # Example usage of CompositionToDNA
@@ -55,12 +55,12 @@ if __name__ == "__main__":
     comp = Composition("Ecoli", Pbad_Promoter, proteins, TrrnB_Terminator)
 
     # Initialize and run the algorithm
-    c2d = CompositionToDNA()
+    c2d = OperonDesigner()
     c2d.initiate()
     construct_result = c2d.run(comp)
 
     # Generate the sequence
-    output_seq  = construct_to_seq(construct_result)
+    output_seq  = operon_to_seq(construct_result)
 
     # Print the result
     print(output_seq)
