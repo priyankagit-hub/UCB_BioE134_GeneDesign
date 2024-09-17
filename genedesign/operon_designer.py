@@ -1,5 +1,5 @@
 from transcript_designer import TranscriptDesigner
-from construct_to_seq import operon_to_seq
+from operon_to_seq import operon_to_seq
 from models.composition import Composition
 from models.operon import Operon
 
