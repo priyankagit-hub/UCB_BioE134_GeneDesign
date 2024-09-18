@@ -5,6 +5,7 @@ from models.operon import Operon
 
 class OperonDesigner:
     """
+    https://chatgpt.com/share/66ea2d49-213c-8006-96be-c19a84fcde6e
     Constructs a DNA sequence for a (co)cistronic operon based on a Composition object that specifies an engineered organism.
     """
 
