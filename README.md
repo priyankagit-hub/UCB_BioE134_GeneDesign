@@ -53,13 +53,16 @@ UCB_BioE134_GeneDesign/
   - `hairpin_counter.py`: Detects potential hairpin structures in sequences.
   - `reverse_complement.py`: Computes the reverse complement of a DNA sequence.
 
+
+
 ## How to Install and Run
 
-This project has no external dependencies, so you can simply clone the repository and run the scripts directly.
+This project has minimal dependencies, which can be installed using `pip` and a virtual environment (venv) to avoid conflicts with other Python projects.
 
 ### Requirements
 
 - **Python 3.x** is required. Make sure it's installed on your system.
+- **Dependencies**: Listed in the `requirements.txt` file.
 
 ### Steps:
 
@@ -69,9 +72,38 @@ This project has no external dependencies, so you can simply clone the repositor
    cd UCB_BioE134_GeneDesign
    ```
 
-2. Run the scripts directly. For example, to design an operon:
+2. Create a virtual environment:
+
+   #### On Windows:
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+
+   #### On macOS/Linux:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. Install dependencies using `pip`:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Run the scripts directly. For example, to design an operon:
    ```bash
    python genedesign/operon_designer.py
+   ```
+
+5. **Running Tests**: You can run the tests using `pytest` to ensure everything works correctly:
+   ```bash
+   pytest
+   ```
+
+6. To deactivate the virtual environment when finished:
+   ```bash
+   deactivate
    ```
 
 ### Usage
