@@ -52,6 +52,7 @@ def test_random_sequences(promoter_checker):
 
 def test_j23119_promoters(promoter_checker):
     # List of sequences with expected results
+    # Selected from https://parts.igem.org/Promoters/Catalog/Anderson highest (False) and lowest (True) strength promoters
     j23119_sequences = [
         ('TTGACAGCTAGCTCAGTCCTAGGTATAATGCTAGC',	 False),
         ('TTGACGGCTAGCTCAGTCCTAGGTACAGTGCTAGC',	 False),
