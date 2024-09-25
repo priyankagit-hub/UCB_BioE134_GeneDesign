@@ -1,4 +1,4 @@
-from models.rbs_option import RBSOption
+from genedesign.models.rbs_option import RBSOption
 
 class RBSChooser:
     """

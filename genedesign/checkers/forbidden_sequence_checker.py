@@ -34,9 +34,9 @@ class ForbiddenSequenceChecker:
 
         for site in self.forbidden:
             if site in combined:
-                return False
+                return False, site
 
-        return True
+        return True, None
 
 def main():
     checker = ForbiddenSequenceChecker()

@@ -1,5 +1,5 @@
-from rbs_chooser import RBSChooser
-from models.transcript import Transcript
+from genedesign.rbs_chooser import RBSChooser
+from genedesign.models.transcript import Transcript
 
 class TranscriptDesigner:
     """
