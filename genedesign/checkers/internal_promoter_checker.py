@@ -1,5 +1,5 @@
 import math
-from genedesign.seq_utils.reverse_complement import reverse_complement  # Import the function from reverse_complement.py
+from genedesign.seq_utils.reverse_complement import reverse_complement
 
 class PromoterChecker:
     """
@@ -59,8 +59,9 @@ class PromoterChecker:
             seq (str): A DNA sequence to check.
 
         Returns:
-            bool: Returns False if the sequence contains a constitutive promoter.
-                  Returns True if the sequence does not contain a constitutive promoter.
+            tuple: (bool, str or None)
+                - bool: True if no promoter is found, False if a promoter is found.
+                - str: The promoter sequence if found, None otherwise.
         """
         # Convert the sequence to uppercase and compute its reverse complement.
         seq = seq.upper()
@@ -81,8 +82,8 @@ class PromoterChecker:
                     score += self.pwm[y][x]
             # If the score exceeds the threshold, the sequence likely contains a constitutive promoter.
             if score >= threshold:
-                return False  # The sequence contains a promoter
-        return True  # No promoter detected in the sequence
+                return False, partseq  # Promoter found, return the sequence
+        return True, None  # No promoter detected in the sequence
 
 
 if __name__ == "__main__":
@@ -93,8 +94,11 @@ if __name__ == "__main__":
     constitutiveBroken = "TTctgAATTAATCATCGAACTAGgcgAAT"
 
     # Example checks
-    print(f"constitutive (false): {checker.run(constitutive)}")  # Expected output: False (contains promoter)
-    print(f"constitutiveBroken (true): {checker.run(constitutiveBroken)}")  # Expected output: True (no promoter)
+    result, promoter = checker.run(constitutive)
+    print(f"constitutive: {result}, Promoter: {promoter}")  # Expected output: False (contains promoter)
+
+    result, promoter = checker.run(constitutiveBroken)
+    print(f"constitutiveBroken: {result}, Promoter: {promoter}")  # Expected output: True (no promoter)
 
     # Example of testing a list of sequences
     seq3 = [
@@ -122,5 +126,5 @@ if __name__ == "__main__":
 
     print("\n>> Testing J23119 promoters (mixed results)")
     for seq in seq3:
-        result = checker.run(seq)
-        print(result)  # Outputs either True (no promoter) or False (contains promoter)
+        result, promoter = checker.run(seq)
+        print(f"Result: {result}, Promoter: {promoter}")  # Outputs either True (no promoter) or False (contains promoter)

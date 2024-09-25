@@ -26,7 +26,7 @@ def test_forbidden_sites(checker):
 
     print(">> Testing problematic sequences (expected False)")
     for seq in forbidden_seqs:
-        result = checker.run(seq.upper())
+        result, site = checker.run(seq.upper())
         print(f"result: {result} on {seq}")
         assert result == False
 
@@ -49,6 +49,6 @@ def test_allowed_sites(checker):
 
     print("\n>> Testing random sequences (expected True)")
     for seq in allowed_seqs:
-        result = checker.run(seq)
+        result, site = checker.run(seq)
         print(f"result: {result} on {seq}")
         assert result == True

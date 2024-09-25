@@ -3,6 +3,9 @@ import traceback
 import csv
 from genedesign.transcript_designer import TranscriptDesigner
 from genedesign.checkers.forbidden_sequence_checker import ForbiddenSequenceChecker
+from genedesign.checkers.internal_promoter_checker import PromoterChecker
+from genedesign.checkers.hairpin_checker import hairpin_checker
+from genedesign.seq_utils.translate import Translate
 
 def parse_fasta(fasta_file):
     """
@@ -109,7 +112,7 @@ def analyze_errors(error_results):
 
 def validate_transcripts(successful_results):
     """
-    Validate the successful transcripts using ForbiddenSequenceChecker.
+    Validate the successful transcripts using various checkers.
     
     Parameters:
         successful_results (list): List of successful result dictionaries.
@@ -117,31 +120,88 @@ def validate_transcripts(successful_results):
     Logs:
         Validation results, including any failures.
     """
-    # Initialize ForbiddenSequenceChecker
-    checker = ForbiddenSequenceChecker()
-    checker.initiate()
+    # Initialize ForbiddenSequenceChecker, PromoterChecker, and Translate
+    forbidden_checker = ForbiddenSequenceChecker()
+    forbidden_checker.initiate()
+
+    promoter_checker = PromoterChecker()
+    promoter_checker.initiate()
+
+    translator = Translate()
+    translator.initiate()
 
     validation_failures = []
 
     for result in successful_results:
-        transcript_dna = ''.join(result['transcript'].codons)  # Assuming transcript has a `codons` attribute
+        # Extract CDS (Coding DNA Sequence)
+        cds = ''.join(result['transcript'].codons)
 
-        # Run the ForbiddenSequenceChecker
-        passed_checker, site = checker.run(transcript_dna)
-        if not passed_checker:
+        try:
+            # Check CDS Translation and Completeness
+            if len(cds) % 3 != 0:
+                raise ValueError("CDS length is not a multiple of 3.")
+
+            original_protein = result['protein']
+            translated_protein = translator.run(cds)
+
+            if original_protein != translated_protein:
+                raise ValueError(f"Translation mismatch: Original {original_protein}, Translated {translated_protein}")
+
+            # Check CDS for Start and Stop codons
+            if not (cds.startswith(("ATG", "GTG", "TTG")) and cds.endswith(("TAA", "TGA", "TAG"))):
+                raise ValueError("CDS does not start with a valid start codon or end with a valid stop codon.")
+
+        except ValueError as e:
             validation_failures.append({
                 'gene': result['gene'],
                 'protein': result['protein'],
-                'transcript': transcript_dna,
-                'site': site
+                'cds': cds,
+                'site': f"Translation or completeness error: {str(e)}"
             })
+            continue  # Skip further checks for this transcript due to translation issues
+
+        # Rebuild full transcript DNA sequence (RBS + CDS)
+        transcript_dna = result['transcript'].rbs.utr.upper() + cds
+
+        # Check for Minimal Hairpins
+        passed_hairpin, hairpin_string = hairpin_checker(transcript_dna)
+        if not passed_hairpin:
+            # Format the hairpin string for TSV output, ensuring there are no unnecessary quotes
+            formatted_hairpin = hairpin_string.replace('\n', ' ').replace('"', "'")
+            validation_failures.append({
+                'gene': result['gene'],
+                'protein': result['protein'],
+                'cds': transcript_dna,
+                'site': f"Hairpin detected: {formatted_hairpin}"
+            })
+
+        # Check for Forbidden Sequences
+        passed_forbidden, forbidden_site = forbidden_checker.run(transcript_dna)
+        if not passed_forbidden:
+            validation_failures.append({
+                'gene': result['gene'],
+                'protein': result['protein'],
+                'cds': transcript_dna,
+                'site': f"Forbidden sequence: {forbidden_site}"
+            })
+
+        # Check for Internal Promoters
+        passed_promoter, found_promoter = promoter_checker.run(transcript_dna)
+        if not passed_promoter:
+            validation_failures.append({
+                'gene': result['gene'],
+                'protein': result['protein'],
+                'cds': transcript_dna,
+                'site': f"Constitutive promoter detected: {found_promoter}" if found_promoter else "Constitutive promoter detected"
+            })
+
 
     # Output the validation failures as TSV
     with open('validation_failures.tsv', 'w', newline='') as f:
         writer = csv.writer(f, delimiter='\t')
-        writer.writerow(['Gene', 'Protein Sequence', 'Transcript DNA', 'Forbidden Sequence'])
+        writer.writerow(['gene', 'protein', 'cds', 'site'])
         for failure in validation_failures:
-            writer.writerow([failure['gene'], failure['protein'], failure['transcript'], failure['site']])
+            writer.writerow([failure['gene'], failure['protein'], failure['cds'], failure['site']])
 
 def run_benchmark(fasta_file):
     """

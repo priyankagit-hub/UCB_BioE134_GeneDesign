@@ -25,8 +25,8 @@ def test_constitutive_promoters(promoter_checker):
     
     print("\n>> Testing constitutive promoters (expected False)")
     for seq in seq1:
-        result = promoter_checker.run(seq)
-        print(f"Result: {result} on {seq}")
+        result, promoter = promoter_checker.run(seq)
+        print(f"Result: {result} on {seq}, Promoter: {promoter}")
         assert result == False  # Expecting constitutive promoters to return False
 
 def test_random_sequences(promoter_checker):
@@ -46,8 +46,8 @@ def test_random_sequences(promoter_checker):
 
     print("\n>> Testing random sequences (expected True)")
     for seq in seq2:
-        result = promoter_checker.run(seq)
-        print(f"Result: {result} on {seq}")
+        result, promoter = promoter_checker.run(seq)
+        print(f"Result: {result} on {seq}, Promoter: {promoter}")
         assert result == True  # Expecting random sequences to return True
 
 def test_j23119_promoters(promoter_checker):
@@ -72,6 +72,6 @@ def test_j23119_promoters(promoter_checker):
 
     print("\n>> Testing J23119 promoters with expected results")
     for seq, expected in j23119_sequences:
-        result = promoter_checker.run(seq)
-        print(f"Sequence: {seq}, Expected: {expected}, Got: {result}")
+        result, promoter = promoter_checker.run(seq)
+        print(f"Sequence: {seq}, Expected: {expected}, Got: {result}, Promoter: {promoter}")
         assert result == expected, f"Test failed for sequence: {seq}. Expected {expected} but got {result}."
