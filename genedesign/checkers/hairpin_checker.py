@@ -35,5 +35,6 @@ def hairpin_checker(dna):
     return True, None
 
 # Example usage
-result, hairpin = hairpin_checker("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAGGGGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-print(result, hairpin)
+if __name__ == "__main__":
+    result, hairpin = hairpin_checker("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAGGGGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    print(result, hairpin)
