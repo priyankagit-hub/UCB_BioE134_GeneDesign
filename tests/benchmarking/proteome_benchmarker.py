@@ -29,7 +29,19 @@ def parse_fasta(fasta_file):
                 if current_gene:
                     sequences[current_gene] = ''.join(current_sequence)
                 # Reset for the new gene
-                current_gene = line.split('|')[2].split(' ')[0]  # Extract gene name
+                # Extract gene name from the GN= tag in the header (e.g., GN=glyA)
+                gene_name = None
+                parts = line.split()
+                for part in parts:
+                    if part.startswith("GN="):
+                        gene_name = part.split("=")[1]
+                        break
+                
+                if not gene_name:
+                    # Fallback: extract something else (e.g., default to identifier if GN is missing)
+                    gene_name = line.split('|')[2].split(' ')[0]
+                
+                current_gene = gene_name
                 current_sequence = []
             else:
                 # Append the sequence lines
