@@ -3,11 +3,12 @@ import traceback
 import csv
 import time
 from statistics import mean
+from genedesign.seq_utils.translate import Translate
 from genedesign.transcript_designer import TranscriptDesigner
 from genedesign.checkers.forbidden_sequence_checker import ForbiddenSequenceChecker
 from genedesign.checkers.internal_promoter_checker import PromoterChecker
 from genedesign.checkers.hairpin_checker import hairpin_checker
-from genedesign.seq_utils.translate import Translate
+from genedesign.checkers.codon_checker import CodonChecker
 
 def parse_fasta(fasta_file):
     """
@@ -85,7 +86,7 @@ def analyze_errors(error_results):
 
 def validate_transcripts(successful_results):
     """
-    Validate the successful transcripts using various checkers.
+    Validate the successful transcripts using various checkers, now including CodonChecker.
     """
     forbidden_checker = ForbiddenSequenceChecker()
     forbidden_checker.initiate()
@@ -93,17 +94,24 @@ def validate_transcripts(successful_results):
     promoter_checker.initiate()
     translator = Translate()
     translator.initiate()
+    codon_checker = CodonChecker()  # Initialize CodonChecker
+    codon_checker.initiate()  # Load the codon usage data
 
     validation_failures = []
     for result in successful_results:
         cds = ''.join(result['transcript'].codons)
         try:
+            # Check if CDS length is a multiple of 3
             if len(cds) % 3 != 0:
                 raise ValueError("CDS length is not a multiple of 3.")
+
+            # Verify that the translated protein matches the original protein
             original_protein = result['protein']
             translated_protein = translator.run(cds)
             if original_protein != translated_protein:
                 raise ValueError(f"Translation mismatch: Original {original_protein}, Translated {translated_protein}")
+
+            # Ensure CDS starts with valid start codon and ends with stop codon
             if not (cds.startswith(("ATG", "GTG", "TTG")) and cds.endswith(("TAA", "TGA", "TAG"))):
                 raise ValueError("CDS does not start with a valid start codon or end with a valid stop codon.")
         except ValueError as e:
@@ -115,6 +123,7 @@ def validate_transcripts(successful_results):
             })
             continue
 
+        # Validate against hairpins, forbidden sequences, and internal promoters
         transcript_dna = result['transcript'].rbs.utr.upper() + cds
         passed_hairpin, hairpin_string = hairpin_checker(transcript_dna)
         if not passed_hairpin:
@@ -125,7 +134,7 @@ def validate_transcripts(successful_results):
                 'cds': transcript_dna,
                 'site': f"Hairpin detected: {formatted_hairpin}"
             })
-        
+
         passed_forbidden, forbidden_site = forbidden_checker.run(transcript_dna)
         if not passed_forbidden:
             validation_failures.append({
@@ -142,6 +151,16 @@ def validate_transcripts(successful_results):
                 'protein': result['protein'],
                 'cds': transcript_dna,
                 'site': f"Constitutive promoter detected: {found_promoter}" if found_promoter else "Constitutive promoter detected"
+            })
+
+        # New: CodonChecker validation
+        codons_above_board, codon_diversity, rare_codon_count, cai_value = codon_checker.run(result['transcript'].codons)
+        if not codons_above_board:
+            validation_failures.append({
+                'gene': result['gene'],
+                'protein': result['protein'],
+                'cds': cds,
+                'site': f"Codon usage check failed: Diversity={codon_diversity}, Rare Codons={rare_codon_count}, CAI={cai_value}"
             })
     
     return validation_failures
