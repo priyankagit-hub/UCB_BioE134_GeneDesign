@@ -153,7 +153,6 @@ def validate_transcripts(successful_results):
                 'site': f"Constitutive promoter detected: {found_promoter}" if found_promoter else "Constitutive promoter detected"
             })
 
-        # New: CodonChecker validation
         codons_above_board, codon_diversity, rare_codon_count, cai_value = codon_checker.run(result['transcript'].codons)
         if not codons_above_board:
             validation_failures.append({
@@ -177,32 +176,53 @@ def write_validation_report(validation_failures):
 
 def generate_summary(total_genes, parsing_time, execution_time, errors_summary, validation_failures):
     """
-    Generates a summary report.
+    Generates a streamlined summary report categorizing validation failures by checker.
     """
     total_validation_failures = len(validation_failures)
-    most_common_validations = {}
+    
+    # Categorize failures by checker type
+    checker_failures = {
+        'Forbidden Sequence Checker': 0,
+        'Hairpin Checker': 0,
+        'Codon Usage Checker': 0,
+        'Promoter Checker': 0,
+        'Translation/Completeness Checker': 0
+    }
+
+    # Increment the appropriate checker category based on the failure site
     for failure in validation_failures:
         site = failure['site']
-        most_common_validations[site] = most_common_validations.get(site, 0) + 1
+        if "Forbidden sequence" in site:
+            checker_failures['Forbidden Sequence Checker'] += 1
+        elif "Hairpin detected" in site:
+            checker_failures['Hairpin Checker'] += 1
+        elif "Codon usage check failed" in site:
+            checker_failures['Codon Usage Checker'] += 1
+        elif "Constitutive promoter detected" in site:
+            checker_failures['Promoter Checker'] += 1
+        elif "Translation or completeness error" in site:
+            checker_failures['Translation/Completeness Checker'] += 1
 
-    most_common_validations = sorted(most_common_validations.items(), key=lambda x: x[1], reverse=True)[:3]
-    
+    # Generate the summary report
     with open('summary_report.txt', 'w') as f:
         f.write(f"Total genes processed: {total_genes}\n")
         f.write(f"Parsing runtime: {parsing_time:.2f} seconds\n")
         f.write(f"Execution runtime: {execution_time:.2f} seconds\n")
         f.write(f"Total exceptions: {sum(errors_summary.values())}\n")
+
         if errors_summary:
-            f.write(f"Top 3 most common exceptions:\n")
+            f.write(f"\nTop 3 most common exceptions:\n")
             for error, count in sorted(errors_summary.items(), key=lambda x: x[1], reverse=True)[:3]:
                 f.write(f"- {error}: {count} occurrences\n")
         else:
             f.write("No exceptions encountered.\n")
-        f.write(f"Total validation failures: {total_validation_failures}\n")
-        if most_common_validations:
-            f.write(f"Top 3 most common validation failures:\n")
-            for validation, count in most_common_validations:
-                f.write(f"- {validation}: {count} occurrences\n")
+
+        f.write(f"\nTotal validation failures: {total_validation_failures}\n")
+
+        # Categorize validation failures by checker
+        f.write("\nValidation Failures by Checker:\n")
+        for checker, count in checker_failures.items():
+            f.write(f"- {checker}: {count} occurrences\n")
 
 def run_benchmark(fasta_file):
     """
