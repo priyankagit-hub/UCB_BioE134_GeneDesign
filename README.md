@@ -16,6 +16,13 @@ UCB_BioE134_GeneDesign/
 │   ├── rbs_chooser.py
 │   ├── transcript_designer.py
 │   ├── transcript_to_seq.py
+│   ├── checkers/
+│   │   ├── codon_checker.py
+│   │   ├── forbidden_sequence_checker.py
+│   │   ├── hairpin_checker.py
+│   │   └── internal_promoter_checker.py
+│   ├── data/
+│   │   └── codon_usage.txt
 │   ├── models/
 │   │   ├── composition.py
 │   │   ├── host.py
@@ -27,32 +34,56 @@ UCB_BioE134_GeneDesign/
 │       ├── calc_edit_distance.py
 │       ├── hairpin_counter.py
 │       └── reverse_complement.py
-├── .gitignore
-└── README.md
+│
+├── tests/
+│   ├── benchmarking/
+│   │   ├── proteome_benchmarker.py
+│   │   └── uniprotkb_proteome_UP000054015_2024_09_24.fasta
+│   └── unit/
+│       ├── checkers/
+│       │   ├── test_codon_checker.py
+│       │   ├── test_forbidden_sequence_checker.py
+│       │   ├── test_internal_promoter_checker.py
+│       ├── designer/
+│       │   ├── test_operon_designer.py
+│       │   └── test_transcript_designer.py
+│       └── seq_utils/
+│           └── test_hairpin_counter.py
+│
+├── README.md
+├── requirements.txt
+├── summary_report.txt
+├── validation_failures.tsv
+└── error_summary.txt
 ```
 
 ### Key Components
 
-- **genedesign/**: Contains the main logic for designing genetic constructs.
-  - `operon_designer.py`: Constructs a multi-gene operon sequence based on an input composition.
-  - `transcript_designer.py`: Designs individual transcripts.
-  - `rbs_chooser.py`: Chooses the appropriate RBS sequences for translation initiation.
-  - `operon_to_seq.py`: Converts constructs to DNA sequences.
-  - `transcript_to_seq.py`: Converts transcript constructs into DNA sequences.
+- **genedesign/**: This directory contains the core functionality for designing genetic constructs, including operons, transcripts, and RBS sequences.
+  - `operon_designer.py`: Constructs a multi-gene operon sequence by arranging genes, promoters, and terminators based on a given composition. It allows for the design of complex genetic constructs.
+  - `transcript_designer.py`: Designs individual transcripts by integrating a ribosome binding site (RBS), coding sequence (CDS), and other elements to ensure proper translation of the gene.
+  - `rbs_chooser.py`: Selects optimal ribosome binding site (RBS) sequences to control translation initiation, optimizing gene expression based on the design.
+  - `operon_to_seq.py`: Converts operon models into DNA sequences by combining genetic elements into a single continuous sequence ready for synthesis.
+  - `transcript_to_seq.py`: Converts designed transcript objects into DNA sequences, generating the final nucleotide sequence of the transcript.
 
-- **models/**: Contains data models used across the project.
+- **checkers/**: Contains sequence validation modules that ensure the designed constructs are free from errors and potential regulatory issues.
+  - `codon_checker.py`: Validates the codon usage in a sequence, checking codon diversity, rare codon count, and calculating the Codon Adaptation Index (CAI) to ensure the sequence is optimized for the host organism.
+  - `forbidden_sequence_checker.py`: Detects forbidden sequences that may interfere with proper gene function, including restriction sites or undesired motifs.
+  - `hairpin_checker.py`: Detects secondary structures like hairpins in the sequence, which can cause issues in gene expression.
+  - `internal_promoter_checker.py`: Detects internal promoter sequences that could lead to unintended gene expression within the construct.
+
+- **models/**: Contains data models used across the project to represent genetic components and structures.
   - `composition.py`: Represents a genetic composition, including its parts (e.g., promoter, genes).
   - `host.py`: Defines different host organisms (e.g., _E. coli_, _S. cerevisiae_).
-  - `operon.py`: Represents a genetic operon (multiple transcripts, promoter, terminator).
-  - `rbs_option.py`: Describes RBS sequences as modular components.
-  - `transcript.py`: Represents a transcript, with an RBS and coding sequence.
+  - `operon.py`: Represents a genetic operon, which consists of multiple transcripts, a promoter, and a terminator.
+  - `rbs_option.py`: Describes RBS sequences as modular components to control translation initiation.
+  - `transcript.py`: Represents a transcript, including its RBS and coding sequence (CDS).
 
-- **seq_utils/**: Utility scripts for handling sequence operations.
-  - `Translate.py`: Handles DNA-to-protein translation.
-  - `calc_edit_distance.py`: Computes the edit distance between sequences.
-  - `hairpin_counter.py`: Detects potential hairpin structures in sequences.
-  - `reverse_complement.py`: Computes the reverse complement of a DNA sequence.
-
+- **seq_utils/**: Utility scripts for handling DNA and protein sequence operations.
+  - `translate.py`: Handles the translation of DNA sequences into corresponding protein sequences.
+  - `calc_edit_distance.py`: Computes the edit distance between two sequences, useful for comparing genetic variants.
+  - `hairpin_counter.py`: Detects potential hairpin structures in nucleotide sequences that could disrupt transcription or translation.
+  - `reverse_complement.py`: Computes the reverse complement of a DNA sequence, often needed in cloning or analysis workflows.
 
 
 ## How to Install and Run
