@@ -1,72 +1,83 @@
+import csv
+import pandas as pd  # type: ignore
 from genedesign.models.rbs_option import RBSOption
+from genedesign.seq_utils.Translate import Translate
+from genedesign.seq_utils.hairpin_counter import hairpin_counter
+from genedesign.seq_utils.calc_edit_distance import calculate_edit_distance
+from typing import Set
+import logging
 
 class RBSChooser:
     """
-    A simple RBS selection algorithm that chooses an RBS from a list of options, excluding any RBS in the ignore set.
+    A class to select the best Ribosome Binding Site (RBS) for a given coding sequence (CDS),
+    using a default merged data file unless specified otherwise.
     """
+    rbs_options = set()  # Class variable to hold all RBS options
 
-    def __init__(self):
-        self.rbsOptions = []
+    def __init__(self, merged_data_file: str = "genedesign/data/merged_data.csv"):
+        self.translator = Translate()
+        self.translator.initiate()
+        self.merged_data_file = merged_data_file
 
-    def initiate(self) -> None:
+    def initiate(self):
         """
-        Populates the RBS options list with predefined options.
+        Populates the RBS options from the merged data CSV file, treating the first column as locus_tag.
         """
-        # Add RBS options based on their sequences and properties
-        opt1 = RBSOption(
-            utr="aaagaggagaaatactag",
-            cds="atggcttcctccgaagacgttatcaaagagttcatgcgtttcaaagttcgtatggaaggttccgttaacggtcacgagttcgaaatcgaaggtgaaggtgaaggtcgtccgtacgaaggtacccagaccgctaaactgaaagttaccaaaggtggtccgctgccgttcgcttgggacatcctgtccccgcagttccagtacggttccaaagcttacgttaaacacccggctgacatcccggactacctgaaactgtccttcccggaaggtttcaaatgggaacgtgttatgaacttcgaagacggtggtgttgttaccgttacccaggactcctccctgcaagacggtgagttcatctacaaagttaaactgcgtggtaccaacttcccgtccgacggtccggttatgcagaaaaaaaccatgggttgggaagcttccaccgaacgtatgtacccggaagacggtgctctgaaaggtgaaatcaaaatgcgtctgaaactgaaagacggtggtcactacgacgctgaagttaaaaccacctacatggctaaaaaaccggttcagctgccgggtgcttacaaaaccgacatcaaactggacatcacctcccacaacgaagactacaccatcgttgaacagtacgaacgtgctgaaggtcgtcactccaccggtgcttaa",
-            gene_name="BBa_b0034",
-            first_six_aas="MASSED"
-        )
-        opt2 = RBSOption(
-            utr="tcacacaggaaagtactag",
-            cds="atgactcaacgtatcgcatatgtaactggtggtatgggtggtatcggtactgcaatttgccagcgtctggcgaaagacggtttccgtgttgttgcgggctgcggtccgaactccccgcgtcgtgaaaagtggctggaacaacagaaagccctgggcttcgacttcattgcctccgagggtaatgtagctgactgggattccaccaagactgccttcgataaagttaaatctgaagtgggcgaagtagatgtactgatcaacaacgccggtattactcgtgatgtcgtattccgcaaaatgacccgtgcagactgggatgcagttatcgacaccaacctgacgtctctgttcaacgttaccaaacaggttattgatggtatggctgaccgtggctggggccgcatcgtgaacatctctagcgttaacggccaaaaaggccaatttggtcagacgaattacagcacggctaaagcaggcctgcacggtttcaccatggcactggcgcaggaagtggcgaccaaaggtgttaccgttaataccgtttctccaggttacatcgccaccgatatggttaaggctatccgccaagatgttctggacaagatcgtggctaccattccggttaaacgcctgggcctgccggaagaaattgcgtccatctgtgcgtggctgagctccgaagagtctggtttttccaccggtgcggatttctctctgaacggtggtctgcacatgggttga",
-            gene_name="BBa_b0032",
-            first_six_aas="MTQRIA"
-        )
-        opt3 = RBSOption(
-            utr="CCATACCCGTTTTTTTGGGCTAACAGGAGGAATTAAcc",
-            cds="atgGacacAattaacatcgctaagaacgacttctctgacatcgaactggctgctatcccgttcaacactctggctgaccattacggtgagcgtttagctcgcgaacagttggcccttgagcatgagtcttacgagatgggtgaagcacgcttccgcaagatgtttgagcgtcaacttaaagctggtgaggttgcggataacgctgccgccaagcctctcatcactaccctactccctaagatgattgcacgcatcaacgactggtttgaggaagtgaaagctaagcgcggcaagcgcccgacagccttccagttcctgcaagaaatcaagccggaagccgtagcgtacatcaccattaagaccactctggcttgcctaaccagtgctgacaatacaaccgttcaggctgtagcaagcgcaatcggtcgggccattgaggacgaggctcgcttcggtcgtatccgtgaccttgaagctaagcacttcaagaaaaacgttgaggaacaactcaacaagcgcgtagggcacgtctacaagaaagcatttatgcaagttgtcgaggctgacatgctctctaagggtctactcggtggcgaggcgtggtcttcgtggcataaggaagactctattcatgtaggagtacgctgcatcgagatgctcattgagtcaaccggaatggttagcttacaccgccaaaatgctggcgtagtaggtcaagactctgagactatcgaactcgcacctgaatacgctgaggctatcgcaacccgtgcaggtgcgctggctggcatctctccgatgttccaaccttgcgtagttcctcctaagccgtggactggcattactggtggtggctattgggctaacggtcgtcgtcctctggcgctggtgcgtactcacagtaagaaagcactgatgcgctacgaagacgtttacatgcctgaggtgtacaaagcgattaacattgcgcaaaacaccgcatggaaaatcaacaagaaagtcctagcggtcgccaacgtaatcaccaagtggaagcattgtccggtcgaggacatccctgcgattgagcgtgaagaactcccgatgaaaccggaagacatcgacatgaatcctgaggctctcaccgcgtggaaacgtgctgccgctgctgtgtaccgcaaggacaaggctcgcaagtctcgccgtatcagccttgagttcatgcttgagcaagccaataagtttgctaaccataaggccatctggttcccttacaacatggactggcgcggtcgtgtttacgctgtgtcaatgttcaacccgcaaggtaacgatatgaccaaaggactgcttacgctggcgaaaggtaaaccaatcggtaaggaaggttactactggctgaaaatccacggtgcaaactgtgcgggtgtcgataaggttccgttccctgagcgcatcaagttcattgaggaaaaccacgagaacatcatggcttgcgctaagtctccactggagaacacttggtgggctgagcaagattctccgttctgcttccttgcgttctgctttgagtacgctggggtacagcaccacggcctgagctataactgctcccttccgctggcgtttgacgggtcttgctctggcatccagcacttctccgcgatgctccgagatgaggtaggtggtcgcgcggttaacttgcttcctagtgaaaccgttcaggacatctacgggattgttgctaagaaagtcaacgagattctacaagcagacgcaatcaatgggaccgataacgaagtagttaccgtgaccgatgagaacactggtgaaatctctgagaaagtcaagctgggcactaaggcactggctggtcaatggctggcttacggtgttactcgcagtgtgactaagcgttcagtcatgacgctggcttacgggtccaaagagttcggcttccgtcaacaagtgctggaagataccattcagccagctattgattccggcaagggtctgatgttcactcagccgaatcaggctgctggatacatggctaagctgatttgggaatctgtgagcgtgacggtggtagctgcggttgaagcaatgaactggcttaagtctgctgctaagctgctggctgctgaggtcaaagataagaagactggagagattcttcgcaagcgttgcgctgtgcattgggtaactcctgatggtttccctgtgtggcaggaatacaagaagcctattcagacgcgcttgaacctgatgttcctcggtcagttccgcttacagcctaccattaacaccaacaaagatagcgagattgatgcacacaaacaggagtctggtatcgctcctaactttgtacacagccaagacggtagccaccttcgtaagactgtagtgtgggcacacgagaagtacggaatcgaatcttttgcactgattcacgactccttcggtaccattccggctgacgctgcgaacctgttcaaagcagtgcgcgaaactatggttgacacatatgagtcttgtgatgtactggctgatttctacgaccagttcgctgaccagttgcacgagtctcaattggacaaaatgccagcacttccggctaaaggtaacttgaacctccgtgacatcttagagtcggacttcgcgttcgcAtaa",
-            gene_name="Pbad_rbs",
-            first_six_aas="MDTINI"
-        )
-        self.rbsOptions.extend([opt1, opt2, opt3])
+        df = pd.read_csv(self.merged_data_file, index_col=0)
+        
+        # Iterate over rows and create RBSOptions
+        for locus_tag, row in df.iterrows():
+            utr = row['UTR']
+            cds = row['CDS']
+            gene_name = row['gene']
+            
+            # Translate the first 18 bases (first 6 amino acids)
+            first_six_aas = self.translator.run(cds[:18])
+            rbs_option = RBSOption(
+                utr=utr,
+                cds=cds,
+                gene_name=gene_name,
+                first_six_aas=first_six_aas
+            )
+            RBSChooser.rbs_options.add(rbs_option)
 
-    def run(self, cds: str, ignores: set) -> RBSOption:
+    def run(self, cds: str, ignores: Set[RBSOption]) -> RBSOption:
         """
-        Selects an RBS that is not in the ignore set.
+        Executes the RBS selection process for the given CDS using available RBS options.
         
         Parameters:
-            cds (str): The coding sequence.
-            ignores (set): A set of RBS options to ignore.
-        
+            cds (str): The coding DNA sequence for which an RBS is to be selected.
+            ignores (Set[RBSOption]): A set of RBS options to ignore during selection.
+
         Returns:
-            RBSOption: The selected RBS option.
+            RBSOption: The selected RBSOption object that best fits the given CDS.
         """
-        for rbsopt in self.rbsOptions:
-            if rbsopt not in ignores:
-                return rbsopt
-        raise Exception("No valid RBS option available.")
+        # Exclude ignored RBS options
+        valid_rbs_options = [rbs for rbs in RBSChooser.rbs_options if rbs not in ignores]
 
-if __name__ == "__main__":
-    # Example usage of RBSChooser
-    cds = "ATGGTAAGAAAACAGTTGCAGAGAGTTGAATT..."
+        # Evaluate secondary structure (hairpin count) for each valid option
+        rbs_hairpin_scores = []
+        for rbs in valid_rbs_options:
+            combined_seq = rbs.utr + cds[:30]
+            hairpin_count, _ = hairpin_counter(combined_seq)
+            rbs_hairpin_scores.append((rbs, hairpin_count))
 
-    # Initialize the chooser
-    chooser = RBSChooser()
-    chooser.initiate()
+        # Peptide similarity comparison (edit distance between first six amino acids)
+        rbs_scores = []
+        first_six_aas_cds = self.translator.run(cds[:18])
+        for rbs, hairpin_count in rbs_hairpin_scores:
+            edit_distance = calculate_edit_distance(rbs.first_six_aas, first_six_aas_cds)
+            # Final score combines hairpin count and edit distance
+            final_score = hairpin_count + edit_distance
+            rbs_scores.append((rbs, final_score))
 
-    # Choose RBS with no ignores
-    ignores = set()
-    selected1 = chooser.run(cds, ignores)
-    
-    # Add the first selection to the ignore list
-    ignores.add(selected1)
-    
-    # Choose another RBS option after ignoring the first
-    selected2 = chooser.run(cds, ignores)
+        # Sort RBS options by final score (lower score is better)
+        rbs_scores.sort(key=lambda x: x[1])
 
-    # Print the selected RBS options
-    print("Selected1:", selected1)
-    print("Selected2:", selected2)
+        if not rbs_scores:
+            raise ValueError("No valid RBS options found after scoring.")
+        
+        # Return the RBS with the best (lowest) score
+
+        return rbs_scores[0][0]  
+
